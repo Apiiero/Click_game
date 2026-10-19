@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberCrystal Clicker - Cyberpunk Idle Game</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        orbitron: ['Orbitron', 'sans-serif'],
+                        rajdhani: ['Rajdhani', 'sans-serif'],
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#090a10',
+                            card: '#121526',
+                            border: '#1f294d',
+                            pink: '#ff007f',
+                            cyan: '#00f0ff',
+                            purple: '#7000ff',
+                            yellow: '#ffe600',
+                            green: '#00ff66'
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s infinite alternate',
+                        'float': 'float 3s ease-in-out infinite',
+                        'spin-slow': 'spin 12s linear infinite',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%': { filter: 'drop-shadow(0 0 15px rgba(0, 240, 255, 0.4))' },
+                            '100%': { filter: 'drop-shadow(0 0 35px rgba(255, 0, 127, 0.8))' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #090a10;
+            color: #e2e8f0;
+            font-family: 'Rajdhani', sans-serif;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        /* Neon Glow Effects */
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+        }
+        .glow-pink {
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.3);
+        }
+        .text-glow-cyan {
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+        }
+        .text-glow-pink {
+            text-shadow: 0 0 10px rgba(255, 0, 127, 0.7);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090a10;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f294d;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f0ff;
+        }
+
+        /* Floating Number Animation */
+        @keyframes floatUpAndFade {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-80px) scale(1.3);
+            }
+        }
+        .floating-num {
+            position: absolute;
+            pointer-events: none;
+            animation: floatUpAndFade 0.9s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 800;
+            z-index: 50;
+        }
+
+        /* Toast Notifications */
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast-enter {
+            animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Clickable Crystal Effects */
+        .crystal-btn {
+            transition: transform 0.05s ease-out, filter 0.2s ease;
+        }
+        .crystal-btn:active {
+            transform: scale(0.92) rotate(-2deg) !important;
+        }
+
+        /* Tab transitions */
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-cyber-bg to-black text-slate-100">
+
+    <!-- Particle Canvas Layer -->
+    <canvas id="particleCanvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- Header Navigation Bar -->
+    <header class="relative z-10 border-b border-cyber-border bg-cyber-bg/80 backdrop-blur-md px-4 py-3 sticky top-0">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyber-cyan to-cyber-purple flex items-center justify-center shadow-lg shadow-cyber-cyan/20">
+                    <i data-lucide="zap" class="text-black fill-current w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-orbitron font-extrabold text-lg sm:text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyber-cyan via-white to-cyber-pink">
+                        CYBER<span class="text-cyber-pink">CRYSTAL</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 font-mono">v1.2.0 • Matrix Edition</p>
+                </div>
+            </div>
+
+            <!-- Header Quick Stats & Controls -->
+            <div class="flex items-center gap-2 sm:gap-4">
+                <button onclick="saveGame(true)" class="p-2 rounded-lg bg-cyber-card border border-cyber-border hover:border-cyber-cyan hover:text-cyber-cyan transition-all text-slate-300" title="Sauvegarder la partie">
+                    <i data-lucide="save" class="w-5 h-5"></i>
+                </button>
+                <button onclick="openModal('settingsModal')" class="p-2 rounded-lg bg-cyber-card border border-cyber-border hover:border-cyber-cyan hover:text-cyber-cyan transition-all text-slate-300" title="Paramètres & Options">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Workspace -->
+    <main class="relative z-10 max-w-7xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+        
+        <!-- LEFT COLUMN: Main Clicker & Power-ups (Lg: 5 cols) -->
+        <section class="lg:col-span-5 flex flex-col items-center justify-between gap-6 bg-cyber-card/60 backdrop-blur-lg border border-cyber-border/80 rounded-2xl p-6 relative overflow-hidden shadow-2xl">
+            <!-- Background Glow Decor -->
+            <div class="absolute -top-24 -left-24 w-60 h-60 bg-cyber-cyan/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -right-24 w-60 h-60 bg-cyber-pink/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Resource Display Counter -->
+            <div class="w-full text-center space-y-2 mt-2">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyber-pink/10 border border-cyber-pink/30 text-cyber-pink text-xs font-semibold uppercase tracking-widest">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Energie Cosmique
+                </div>
+                <div id="energyDisplay" class="font-orbitron font-black text-4xl sm:text-5xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-cyber-cyan tracking-tight text-glow-cyan py-1">
+                    0
+                </div>
+                <div class="flex justify-center items-center gap-4 text-sm sm:text-base text-slate-400 font-mono">
+                    <span class="flex items-center gap-1"><i data-lucide="mouse-pointer" class="w-4 h-4 text-cyber-cyan"></i> <span id="cpcDisplay" class="text-slate-200 font-semibold">1</span> /clic</span>
+                    <span class="text-slate-600">•</span>
+                    <span class="flex items-center gap-1"><i data-lucide="zap" class="w-4 h-4 text-cyber-pink"></i> <span id="cpsDisplay" class="text-slate-200 font-semibold">0</span> /sec</span>
+                </div>
+            </div>
+
+            <!-- Interactive Main Crystal Button -->
+            <div id="crystalContainer" class="relative my-auto flex items-center justify-center p-8 w-full max-w-[280px] sm:max-w-[340px] aspect-square">
+                <!-- Outer Pulse Rings -->
+                <div class="absolute inset-0 rounded-full border border-cyber-cyan/20 animate-ping opacity-25 pointer-events-none"></div>
+                <div class="absolute inset-4 rounded-full border border-cyber-pink/20 animate-pulse pointer-events-none"></div>
+
+                <!-- Main Clickable Crystal Asset (SVG) -->
+                <button id="crystalBtn" class="crystal-btn relative z-10 w-full h-full cursor-pointer focus:outline-none group">
+                    <svg viewBox="0 0 200 200" class="w-full h-full drop-shadow-[0_0_25px_rgba(0,240,255,0.4)] group-hover:drop-shadow-[0_0_40px_rgba(255,0,127,0.7)] transition-all duration-300">
+                        <defs>
+                            <linearGradient id="crystalGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#00f0ff" />
+                                <stop offset="50%" stop-color="#7000ff" />
+                                <stop offset="100%" stop-color="#ff007f" />
+                            </linearGradient>
+                            <linearGradient id="crystalGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.2"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- Main Geometric Polygon Shapes -->
+                        <polygon points="100,15 155,50 170,110 100,185 30,110 45,50" fill="url(#crystalGrad1)" stroke="#00f0ff" stroke-width="2" />
+                        <!-- Facets for 3D look -->
+                        <polygon points="100,15 100,185 155,50" fill="rgba(255,255,255,0.15)" />
+                        <polygon points="100,15 45,50 100,185" fill="rgba(0,0,0,0.2)" />
+                        <polygon points="45,50 100,95 155,50" fill="url(#crystalGrad2)" />
+                        <polygon points="100,95 170,110 100,185" fill="rgba(255,0,127,0.25)" />
+                        <polygon points="100,95 30,110 100,185" fill="rgba(0,240,255,0.2)" />
+                        <polygon points="100,15 100,95 155,50" fill="rgba(255,255,255,0.4)" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Active Buffs / Multipliers Indicator Bar -->
+            <div id="buffsBar" class="w-full flex justify-center items-center gap-2 min-h-[36px]">
+                <!-- Dynamic Active Buff Badges Inserted Here -->
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Upgrades, Generators, Prestige & Stats (Lg: 7 cols) -->
+        <section class="lg:col-span-7 flex flex-col bg-cyber-card/60 backdrop-blur-lg border border-cyber-border/80 rounded-2xl overflow-hidden shadow-2xl min-h-[550px]">
+            <!-- Tab Navigation Bar -->
+            <nav class="flex border-b border-cyber-border bg-cyber-bg/50 p-2 gap-2 overflow-x-auto">
+                <button onclick="switchTab('upgrades')" id="tab-upgrades" class="tab-btn flex-1 min-w-[110px] py-2.5 px-4 rounded-xl font-orbitron text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all bg-cyber-pink/20 text-cyber-pink border border-cyber-pink/40 shadow-lg">
+                    <i data-lucide="shopping-bag" class="w-4 h-4"></i> Boutique
+                </button>
+                <button onclick="switchTab('prestige')" id="tab-prestige" class="tab-btn flex-1 min-w-[110px] py-2.5 px-4 rounded-xl font-orbitron text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-slate-200 hover:bg-cyber-card border border-transparent">
+                    <i data-lucide="atom" class="w-4 h-4"></i> Ascension
+                </button>
+                <button onclick="switchTab('achievements')" id="tab-achievements" class="tab-btn flex-1 min-w-[110px] py-2.5 px-4 rounded-xl font-orbitron text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-slate-200 hover:bg-cyber-card border border-transparent relative">
+                    <i data-lucide="trophy" class="w-4 h-4"></i> Trophées
+                    <span id="achievementBadge" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-cyber-pink rounded-full animate-ping"></span>
+                </button>
+                <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn flex-1 min-w-[110px] py-2.5 px-4 rounded-xl font-orbitron text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-slate-200 hover:bg-cyber-card border border-transparent">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Stats
+                </button>
+            </nav>
+
+            <!-- TAB 1: SHOP & UPGRADES -->
+            <div id="content-upgrades" class="tab-content active p-4 sm:p-6 flex-grow overflow-y-auto max-h-[620px] space-y-6">
+                <!-- Section 1: Click Upgrades (CPC) -->
+                <div>
+                    <h3 class="font-orbitron text-sm font-bold text-cyber-cyan uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i data-lucide="zap" class="w-4 h-4"></i> Modules de Clic Manuel
+                    </h3>
+                    <div id="clickUpgradesList" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Section 2: Automated Generators (CPS) -->
+                <div>
+                    <h3 class="font-orbitron text-sm font-bold text-cyber-pink uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i data-lucide="cpu" class="w-4 h-4"></i> Générateurs Automatiques
+                    </h3>
+                    <div id="generatorsList" class="space-y-3">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: ASCENSION / PRESTIGE -->
+            <div id="content-prestige" class="tab-content p-6 flex-grow overflow-y-auto space-y-6">
+                <div class="text-center max-w-md mx-auto space-y-4 py-4">
+                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-cyber-purple via-cyber-pink to-cyber-cyan p-0.5 mx-auto shadow-xl shadow-cyber-purple/30">
+                        <div class="w-full h-full bg-cyber-bg rounded-[14px] flex items-center justify-center">
+                            <i data-lucide="atom" class="w-10 h-10 text-cyber-cyan animate-spin-slow"></i>
+                        </div>
+                    </div>
+                    <h2 class="font-orbitron text-2xl font-black text-white">Réinitialisation Quantique</h2>
+                    <p class="text-sm text-slate-400">
+                        Sacrifiez toute votre énergie et vos bâtiments pour transcender dans la Matrice. 
+                        Vous recevrez des <span class="text-cyber-cyan font-bold">Puces Quantiques</span> qui augmentent définitivement TOUTE votre production de revenus !
+                    </p>
+
+                    <div class="p-4 rounded-xl bg-cyber-bg border border-cyber-border space-y-3 text-left">
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-slate-400">Puces Actuelles :</span>
+                            <span id="currentChips" class="font-orbitron font-bold text-cyber-cyan">0</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-slate-400">Bonus de Production :</span>
+                            <span id="currentPrestigeBonus" class="font-orbitron font-bold text-cyber-green">+0%</span>
+                        </div>
+                        <div class="border-t border-cyber-border pt-3 flex justify-between items-center text-sm">
+                            <span class="text-slate-300 font-semibold">Puces à obtenir :</span>
+                            <span id="pendingChips" class="font-orbitron font-bold text-cyber-pink text-lg">+0</span>
+                        </div>
+                    </div>
+
+                    <button id="prestigeBtn" onclick="triggerPrestige()" disabled class="w-full py-4 rounded-xl font-orbitron font-extrabold text-sm uppercase tracking-wider transition-all bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700">
+                        Requis: 1 000 000 Énergie
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 3: ACHIEVEMENTS -->
+            <div id="content-achievements" class="tab-content p-4 sm:p-6 flex-grow overflow-y-auto max-h-[620px]">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-orbitron text-sm font-bold text-cyber-yellow uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="award" class="w-4 h-4"></i> Hauts Faits Débloqués
+                    </h3>
+                    <span id="achievementsRatio" class="text-xs font-mono text-slate-400 bg-cyber-bg px-2.5 py-1 rounded-full border border-cyber-border">0 / 0</span>
+                </div>
+                <div id="achievementsList" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+
+            <!-- TAB 4: STATISTICS -->
+            <div id="content-stats" class="tab-content p-6 flex-grow overflow-y-auto space-y-4">
+                <h3 class="font-orbitron text-sm font-bold text-slate-300 uppercase tracking-wider mb-4">Statistiques du Système</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="p-4 rounded-xl bg-cyber-bg border border-cyber-border">
+                        <p class="text-xs text-slate-400 mb-1">Énergie Totale Générée</p>
+                        <p id="statTotalEnergy" class="font-orbitron font-bold text-lg text-cyber-cyan">0</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-cyber-bg border border-cyber-border">
+                        <p class="text-xs text-slate-400 mb-1">Nombre de Clics Manuels</p>
+                        <p id="statTotalClicks" class="font-orbitron font-bold text-lg text-cyber-pink">0</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-cyber-bg border border-cyber-border">
+                        <p class="text-xs text-slate-400 mb-1">Temps de Jeu</p>
+                        <p id="statTimePlayed" class="font-orbitron font-bold text-lg text-slate-200">0s</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-cyber-bg border border-cyber-border">
+                        <p class="text-xs text-slate-400 mb-1">Ascensions Effectuées</p>
+                        <p id="statPrestigeCount" class="font-orbitron font-bold text-lg text-cyber-purple">0</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer Credit & Info -->
+    <footer class="relative z-10 border-t border-cyber-border/50 py-3 text-center text-xs text-slate-500 font-mono">
+        <p>CyberCrystal Clicker • Déployable sur GitHub Pages & Serveurs Web • Produit 100% Autonome</p>
+    </footer>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-cyber-card border border-cyber-border w-full max-w-md rounded-2xl p-6 space-y-6 relative shadow-2xl">
+            <div class="flex justify-between items-center border-b border-cyber-border pb-4">
+                <h3 class="font-orbitron font-bold text-lg text-slate-100 flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5 text-cyber-cyan"></i> Paramètres
+                </h3>
+                <button onclick="closeModal('settingsModal')" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm font-semibold text-slate-200">Effets Visuels & Particules</p>
+                        <p class="text-xs text-slate-400">Désactiver pour améliorer les performances</p>
+                    </div>
+                    <input type="checkbox" id="particlesToggle" checked onchange="toggleParticles(this.checked)" class="w-5 h-5 accent-cyber-cyan cursor-pointer">
+                </div>
+
+                <div class="border-t border-cyber-border pt-4 space-y-3">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Gestion de la Sauvegarde</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="exportSave()" class="py-2 px-3 rounded-lg bg-cyber-bg border border-cyber-border hover:border-cyber-cyan text-xs font-semibold text-slate-300 transition-all">
+                            Exporter (Copier)
+                        </button>
+                        <button onclick="importSave()" class="py-2 px-3 rounded-lg bg-cyber-bg border border-cyber-border hover:border-cyber-cyan text-xs font-semibold text-slate-300 transition-all">
+                            Importer (Coller)
+                        </button>
+                    </div>
+                    <button onclick="confirmResetGame()" class="w-full py-2.5 px-4 rounded-lg bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-400 text-xs font-bold transition-all">
+                        Réinitialiser complètement la partie
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME LOGIC SCRIPT -->
+    <script>
+        /* ==========================================================================
+           1. GAME CONFIGURATION & STATE DATA
+           ========================================================================== */
+        const GAME_CONFIG = {
+            prestigeRequirement: 1000000, // Energy needed for 1st Prestige
+            chipMultiplier: 0.10,          // Each chip gives +10% bonus
+            saveKey: 'cyber_clicker_save_v1'
+        };
+
+        let gameState = {
+            energy: 0,
+            totalEnergyEarned: 0,
+            totalClicks: 0,
+            timePlayed: 0,
+            prestigeChips: 0,
+            prestigeCount: 0,
+            clickPowerLevel: 0,
+            clickUpgrades: {},
+            generators: {},
+            achievements: {},
+            lastTick: Date.now(),
+            settings: {
+                particles: true
+            }
+        };
+
+        // Click Upgrade Definitions
+        const CLICK_UPGRADES = [
+            { id: 'c1', name: 'Curseur Laser', baseCost: 15, power: 1, desc: 'Augmente le clic de +1', icon: 'mouse-pointer' },
+            { id: 'c2', name: 'Surcharge Synaptique', baseCost: 100, power: 5, desc: 'Augmente le clic de +5', icon: 'zap' },
+            { id: 'c3', name: 'Implants Cybernétiques', baseCost: 1100, power: 25, desc: 'Augmente le clic de +25', icon: 'cpu' },
+            { id: 'c4', name: 'Focaliseur Plasmique', baseCost: 12000, power: 120, desc: 'Augmente le clic de +120', icon: 'crosshair' },
+            { id: 'c5', name: 'Gant Quantique', baseCost: 130000, power: 750, desc: 'Augmente le clic de +750', icon: 'hand' }
+        ];
+
+        // Automatic Generator Definitions
+        const GENERATORS = [
+            { id: 'g1', name: 'Drone Extracteur', baseCost: 50, cps: 1, desc: 'Génère 1 énergie/sec', icon: 'bot' },
+            { id: 'g2', name: 'Mineur Photonique', baseCost: 350, cps: 8, desc: 'Génère 8 énergie/sec', icon: 'pickaxe' },
+            { id: 'g3', name: 'Réacteur à Fusion', baseCost: 3000, cps: 45, desc: 'Génère 45 énergie/sec', icon: 'flame' },
+            { id: 'g4', name: 'Station Orbitale', baseCost: 25000, cps: 260, desc: 'Génère 260 énergie/sec', icon: 'satellite' },
+            { id: 'g5', name: 'Matrice d\'Antimatière', baseCost: 200000, cps: 1400, desc: 'Génère 1 400 énergie/sec', icon: 'globe' },
+            { id: 'g6', name: 'Forage Dimensionnel', baseCost: 1500000, cps: 8500, desc: 'Génère 8 500 énergie/sec', icon: 'orbit' }
+        ];
+
+        // Achievements Definitions
+        const ACHIEVEMENTS = [
+            { id: 'a1', title: 'Premier Éclat', desc: 'Cliquez 1 fois sur le cristal', req: (s) => s.totalClicks >= 1, icon: 'sparkles' },
+            { id: 'a2', title: 'Frénésie de Clics', desc: 'Atteignez 100 clics manuels', req: (s) => s.totalClicks >= 100, icon: 'pointer' },
+            { id: 'a3', title: 'Accumulateur', desc: 'Avoir 1 000 Énergie cumulée', req: (s) => s.totalEnergyEarned >= 1000, icon: 'database' },
+            { id: 'a4', title: 'Industrialisation', desc: 'Achetez au moins 10 générateurs', req: (s) => getTotalGeneratorsCount() >= 10, icon: 'factory' },
+            { id: 'a5', title: 'Ascension Quantique', desc: 'Effectuez votre première Ascension', req: (s) => s.prestigeCount >= 1, icon: 'atom' },
+            { id: 'a6', title: 'Tycoon Cybernétique', desc: 'Générez 1 000 000 d\'Énergie au total', req: (s) => s.totalEnergyEarned >= 1000000, icon: 'crown' }
+        ];
+
+        // Buffs & Random Events State
+        let activeBuffs = {
+            clickMultiplier: 1,
+            cpsMultiplier: 1
+        };
+
+        /* ==========================================================================
+           2. FORMATTING & HELPER FUNCTIONS
+           ========================================================================== */
+        function formatNumber(num) {
+            if (num < 1000) return Math.floor(num).toLocaleString('fr-FR');
+            const suffixes = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi'];
+            const i = Math.floor(Math.log10(num) / 3);
+            if (i >= suffixes.length) return num.toExponential(2);
+            const formatted = (num / Math.pow(10, i * 3)).toFixed(2);
+            return `${formatted} ${suffixes[i]}`;
+        }
+
+        function formatTime(seconds) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            if (hrs > 0) return `${hrs}h ${mins}m ${secs}s`;
+            if (mins > 0) return `${mins}m ${secs}s`;
+            return `${secs}s`;
+        }
+
+        function getClickPower() {
+            let base = 1;
+            CLICK_UPGRADES.forEach(upg => {
+                const count = gameState.clickUpgrades[upg.id] || 0;
+                base += upg.power * count;
+            });
+            const prestigeBonus = 1 + (gameState.prestigeChips * GAME_CONFIG.chipMultiplier);
+            return Math.floor(base * prestigeBonus * activeBuffs.clickMultiplier);
+        }
+
+        function getCPS() {
+            let baseCps = 0;
+            GENERATORS.forEach(gen => {
+                const count = gameState.generators[gen.id] || 0;
+                baseCps += gen.cps * count;
+            });
+            const prestigeBonus = 1 + (gameState.prestigeChips * GAME_CONFIG.chipMultiplier);
+            return baseCps * prestigeBonus * activeBuffs.cpsMultiplier;
+        }
+
+        function getUpgradeCost(baseCost, count) {
+            return Math.floor(baseCost * Math.pow(1.15, count));
+        }
+
+        function getTotalGeneratorsCount() {
+            return Object.values(gameState.generators).reduce((a, b) => a + b, 0);
+        }
+
+        /* ==========================================================================
+           3. UI RENDERERS & UPDATERS
+           ========================================================================== */
+        function updateDisplay() {
+            document.getElementById('energyDisplay').innerText = formatNumber(gameState.energy);
+            document.getElementById('cpcDisplay').innerText = formatNumber(getClickPower());
+            document.getElementById('cpsDisplay').innerText = formatNumber(getCPS());
+
+            // Update stats tab
+            document.getElementById('statTotalEnergy').innerText = formatNumber(gameState.totalEnergyEarned);
+            document.getElementById('statTotalClicks').innerText = formatNumber(gameState.totalClicks);
+            document.getElementById('statTimePlayed').innerText = formatTime(gameState.timePlayed);
+            document.getElementById('statPrestigeCount').innerText = gameState.prestigeCount;
+
+            // Update Prestige UI
+            document.getElementById('currentChips').innerText = gameState.prestigeChips;
+            document.getElementById('currentPrestigeBonus').innerText = `+${Math.round(gameState.prestigeChips * GAME_CONFIG.chipMultiplier * 100)}%`;
+            
+            const potentialChips = Math.floor(Math.pow(gameState.totalEnergyEarned / GAME_CONFIG.prestigeRequirement, 0.5));
+            document.getElementById('pendingChips').innerText = `+${potentialChips}`;
+            
+            const prestigeBtn = document.getElementById('prestigeBtn');
+            if (potentialChips > 0) {
+                prestigeBtn.disabled = false;
+                prestigeBtn.className = "w-full py-4 rounded-xl font-orbitron font-extrabold text-sm uppercase tracking-wider transition-all bg-gradient-to-r from-cyber-pink to-cyber-purple text-white shadow-lg shadow-cyber-pink/30 hover:scale-[1.02] active:scale-95 cursor-pointer border border-cyber-pink";
+                prestigeBtn.innerText = `Déclencher l'Ascension (+${potentialChips} Puces)`;
+            } else {
+                prestigeBtn.disabled = true;
+                prestigeBtn.className = "w-full py-4 rounded-xl font-orbitron font-extrabold text-sm uppercase tracking-wider transition-all bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700";
+                prestigeBtn.innerText = `Requis: 1 000 000 Énergie (Cumulée)`;
+            }
+
+            renderShop();
+            checkAchievements();
+        }
+
+        function renderShop() {
+            // Click Upgrades Render
+            const clickContainer = document.getElementById('clickUpgradesList');
+            clickContainer.innerHTML = CLICK_UPGRADES.map(upg => {
+                const count = gameState.clickUpgrades[upg.id] || 0;
+                const cost = getUpgradeCost(upg.baseCost, count);
+                const canAfford = gameState.energy >= cost;
+
+                return `
+                    <button onclick="buyClickUpgrade('${upg.id}')" ${!canAfford ? 'disabled' : ''} 
+                        class="flex items-center gap-3 p-3 rounded-xl bg-cyber-bg border ${canAfford ? 'border-cyber-border hover:border-cyber-cyan text-left cursor-pointer' : 'border-slate-800 opacity-60 cursor-not-allowed'} transition-all group">
+                        <div class="w-10 h-10 rounded-lg bg-cyber-card flex items-center justify-center border border-cyber-border group-hover:border-cyber-cyan text-cyber-cyan shrink-0">
+                            <i data-lucide="${upg.icon}" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-grow min-w-0">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-orbitron text-xs font-bold text-slate-100 truncate">${upg.name}</h4>
+                                <span class="font-mono text-xs font-bold text-cyber-pink">x${count}</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 truncate">${upg.desc}</p>
+                            <p class="font-mono text-xs font-semibold ${canAfford ? 'text-cyber-cyan' : 'text-slate-500'} mt-0.5">
+                                ${formatNumber(cost)} Énergie
+                            </p>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+
+            // Generators Render
+            const genContainer = document.getElementById('generatorsList');
+            genContainer.innerHTML = GENERATORS.map(gen => {
+                const count = gameState.generators[gen.id] || 0;
+                const cost = getUpgradeCost(gen.baseCost, count);
+                const canAfford = gameState.energy >= cost;
+
+                return `
+                    <button onclick="buyGenerator('${gen.id}')" ${!canAfford ? 'disabled' : ''} 
+                        class="w-full flex items-center justify-between p-3.5 rounded-xl bg-cyber-bg border ${canAfford ? 'border-cyber-border hover:border-cyber-pink cursor-pointer' : 'border-slate-800 opacity-60 cursor-not-allowed'} transition-all group">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-12 h-12 rounded-xl bg-cyber-card flex items-center justify-center border border-cyber-border group-hover:border-cyber-pink text-cyber-pink shrink-0">
+                                <i data-lucide="${gen.icon}" class="w-6 h-6"></i>
+                            </div>
+                            <div class="text-left min-w-0">
+                                <h4 class="font-orbitron text-sm font-bold text-slate-100 truncate">${gen.name}</h4>
+                                <p class="text-xs text-slate-400 truncate">${gen.desc}</p>
+                                <span class="font-mono text-xs font-semibold ${canAfford ? 'text-cyber-cyan' : 'text-slate-500'}">
+                                    ${formatNumber(cost)} Énergie
+                                </span>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="font-orbitron font-extrabold text-lg text-cyber-pink block">x${count}</span>
+                            <span class="text-[10px] text-slate-500 font-mono">+${formatNumber(gen.cps * count)}/s</span>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function renderAchievements() {
+            const container = document.getElementById('achievementsList');
+            let unlockedCount = 0;
+
+            container.innerHTML = ACHIEVEMENTS.map(ach => {
+                const isUnlocked = !!gameState.achievements[ach.id];
+                if (isUnlocked) unlockedCount++;
+
+                return `
+                    <div class="p-3 rounded-xl bg-cyber-bg border ${isUnlocked ? 'border-cyber-yellow/40 bg-cyber-yellow/5' : 'border-slate-800 opacity-50'} flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg ${isUnlocked ? 'bg-cyber-yellow/20 text-cyber-yellow' : 'bg-slate-800 text-slate-600'} flex items-center justify-center shrink-0">
+                            <i data-lucide="${ach.icon}" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-orbitron text-xs font-bold ${isUnlocked ? 'text-cyber-yellow' : 'text-slate-400'}">${ach.title}</h4>
+                            <p class="text-[11px] text-slate-400">${ach.desc}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('achievementsRatio').innerText = `${unlockedCount} / ${ACHIEVEMENTS.length}`;
+            lucide.createIcons();
+        }
+
+        /* ==========================================================================
+           4. GAMEPLAY MECHANICS & INTERACTIONS
+           ========================================================================== */
+        // Main Crystal Click Event
+        function handleCrystalClick(e) {
+            const clickPower = getClickPower();
+            gameState.energy += clickPower;
+            gameState.totalEnergyEarned += clickPower;
+            gameState.totalClicks++;
+
+            // Visual Effects ("Juice")
+            spawnFloatingNumber(e.clientX, e.clientY, `+${formatNumber(clickPower)}`);
+            if (gameState.settings.particles) {
+                spawnParticles(e.clientX, e.clientY);
+            }
+
+            updateDisplay();
+        }
+
+        function spawnFloatingNumber(x, y, text) {
+            const el = document.createElement('div');
+            el.className = 'floating-num text-cyber-cyan text-glow-cyan';
+            el.innerText = text;
+            
+            // Random offset for dynamic movement
+            const offsetX = (Math.random() - 0.5) * 30;
+            el.style.left = `${x + offsetX}px`;
+            el.style.top = `${y - 20}px`;
+
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 900);
+        }
+
+        // Shop Purchasing
+        function buyClickUpgrade(id) {
+            const upg = CLICK_UPGRADES.find(u => u.id === id);
+            const count = gameState.clickUpgrades[id] || 0;
+            const cost = getUpgradeCost(upg.baseCost, count);
+
+            if (gameState.energy >= cost) {
+                gameState.energy -= cost;
+                gameState.clickUpgrades[id] = count + 1;
+                updateDisplay();
+                showToast(`Amélioration achetée : ${upg.name}`, 'success');
+            }
+        }
+
+        function buyGenerator(id) {
+            const gen = GENERATORS.find(g => g.id === id);
+            const count = gameState.generators[id] || 0;
+            const cost = getUpgradeCost(gen.baseCost, count);
+
+            if (gameState.energy >= cost) {
+                gameState.energy -= cost;
+                gameState.generators[id] = count + 1;
+                updateDisplay();
+                showToast(`Générateur construit : ${gen.name}`, 'success');
+            }
+        }
+
+        // Prestige / Ascension System
+        function triggerPrestige() {
+            const potentialChips = Math.floor(Math.pow(gameState.totalEnergyEarned / GAME_CONFIG.prestigeRequirement, 0.5));
+            if (potentialChips < 1) return;
+
+            // Reset resources but keep achievements & prestige stats
+            gameState.prestigeChips += potentialChips;
+            gameState.prestigeCount++;
+            gameState.energy = 0;
+            gameState.clickUpgrades = {};
+            gameState.generators = {};
+
+            // Trigger Victory Confetti
+            confetti({
+                particleCount: 120,
+                spread: 80,
+                origin: { y: 0.6 }
+            });
+
+            showToast(`Ascension Réussie ! +${potentialChips} Puces Quantiques`, 'award');
+            saveGame();
+            updateDisplay();
+        }
+
+        // Achievements Logic
+        function checkAchievements() {
+            ACHIEVEMENTS.forEach(ach => {
+                if (!gameState.achievements[ach.id] && ach.req(gameState)) {
+                    gameState.achievements[ach.id] = true;
+                    showToast(`Trophée Débloqué : ${ach.title}!`, 'award');
+                    document.getElementById('achievementBadge').classList.remove('hidden');
+                    renderAchievements();
+                }
+            });
+        }
+
+        // Random Golden Meteor Event Spawn
+        function spawnRandomEvent() {
+            if (Math.random() > 0.3) return; // 30% chance every check interval
+
+            const meteor = document.createElement('div');
+            meteor.className = 'fixed z-40 w-12 h-12 rounded-full bg-gradient-to-r from-cyber-yellow to-cyber-pink cursor-pointer animate-bounce border-2 border-white shadow-[0_0_20px_#ffe600] flex items-center justify-center';
+            meteor.innerHTML = '<i data-lucide="zap" class="w-6 h-6 text-black fill-current"></i>';
+            
+            const x = Math.random() * (window.innerWidth - 80);
+            const y = Math.random() * (window.innerHeight - 80);
+            meteor.style.left = `${x}px`;
+            meteor.style.top = `${y}px`;
+
+            meteor.onclick = () => {
+                const bonus = Math.max(50, getCPS() * 30); // 30 sec of passive CPS
+                gameState.energy += bonus;
+                gameState.totalEnergyEarned += bonus;
+                showToast(`Comète de Surplus ! +${formatNumber(bonus)} Énergie`, 'zap');
+                meteor.remove();
+                updateDisplay();
+            };
+
+            document.body.appendChild(meteor);
+            lucide.createIcons();
+
+            // Auto despawn after 8 seconds
+            setTimeout(() => {
+                if (document.body.contains(meteor)) meteor.remove();
+            }, 8000);
+        }
+
+        /* ==========================================================================
+           5. CANVAS PARTICLES SYSTEM
+           ========================================================================== */
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function spawnParticles(x, y) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    size: Math.random() * 4 + 2,
+                    color: Math.random() > 0.5 ? '#00f0ff' : '#ff007f',
+                    life: 1
+                });
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (gameState.settings.particles) {
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 0.025;
+
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = Math.max(0, p.life);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    if (p.life <= 0) particles.splice(i, 1);
+                }
+            }
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        /* ==========================================================================
+           6. SAVE, LOAD & SETTINGS MANAGEMENT
+           ========================================================================== */
+        function saveGame(manual = false) {
+            try {
+                localStorage.setItem(GAME_CONFIG.saveKey, JSON.stringify(gameState));
+                if (manual) showToast('Partie sauvegardée dans le navigateur !', 'save');
+            } catch (e) {
+                console.error("Erreur de sauvegarde:", e);
+            }
+        }
+
+        function loadGame() {
+            try {
+                const saved = localStorage.getItem(GAME_CONFIG.saveKey);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    gameState = { ...gameState, ...parsed };
+                    
+                    // Offline earnings calculation
+                    const now = Date.now();
+                    const offlineSeconds = Math.floor((now - (gameState.lastTick || now)) / 1000);
+                    if (offlineSeconds > 5) {
+                        const offlineCps = getCPS();
+                        const earned = offlineSeconds * offlineCps * 0.5; // 50% offline efficiency
+                        if (earned > 0) {
+                            gameState.energy += earned;
+                            gameState.totalEnergyEarned += earned;
+                            setTimeout(() => {
+                                showToast(`Gain Hors-Ligne (${formatTime(offlineSeconds)}) : +${formatNumber(earned)} Énergie`, 'clock');
+                            }, 500);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Erreur de chargement:", e);
+            }
+        }
+
+        function confirmResetGame() {
+            if (confirm("Êtes-vous sûr de vouloir réinitialiser TOUTE votre progression ? Cette action est irréversible.")) {
+                localStorage.removeItem(GAME_CONFIG.saveKey);
+                location.reload();
+            }
+        }
+
+        function exportSave() {
+            const dataStr = btoa(JSON.stringify(gameState));
+            navigator.clipboard.writeText(dataStr).then(() => {
+                showToast('Code de sauvegarde copié dans le presse-papier !', 'copy');
+            });
+        }
+
+        function importSave() {
+            const code = prompt("Collez votre code de sauvegarde ici :");
+            if (code) {
+                try {
+                    const parsed = JSON.parse(atob(code));
+                    gameState = parsed;
+                    saveGame();
+                    location.reload();
+                } catch (e) {
+                    alert("Code de sauvegarde invalide.");
+                }
+            }
+        }
+
+        function toggleParticles(enabled) {
+            gameState.settings.particles = enabled;
+            saveGame();
+        }
+
+        /* ==========================================================================
+           7. UI MODALS & TABS NAVIGATION
+           ========================================================================== */
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('bg-cyber-pink/20', 'text-cyber-pink', 'border-cyber-pink/40', 'shadow-lg');
+                el.classList.add('text-slate-400', 'border-transparent');
+            });
+
+            document.getElementById(`content-${tabId}`).classList.add('active');
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.add('bg-cyber-pink/20', 'text-cyber-pink', 'border-cyber-pink/40', 'shadow-lg');
+            activeBtn.classList.remove('text-slate-400', 'border-transparent');
+
+            if (tabId === 'achievements') {
+                document.getElementById('achievementBadge').classList.add('hidden');
+                renderAchievements();
+            }
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function showToast(message, iconName = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast-enter p-3.5 rounded-xl bg-cyber-card/95 border border-cyber-cyan/50 backdrop-blur-md shadow-xl flex items-center gap-3 text-slate-100 pointer-events-auto';
+            toast.innerHTML = `
+                <div class="w-8 h-8 rounded-lg bg-cyber-cyan/20 text-cyber-cyan flex items-center justify-center shrink-0">
+                    <i data-lucide="${iconName}" class="w-4 h-4"></i>
+                </div>
+                <p class="text-xs font-semibold font-mono">${message}</p>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        /* ==========================================================================
+           8. MAIN INITIALIZATION & GAME LOOP
+           ========================================================================== */
+        window.onload = function() {
+            loadGame();
+            
+            // Attach Click Event Listener to Crystal
+            document.getElementById('crystalBtn').addEventListener('click', handleCrystalClick);
+
+            // Main Game Loop (Runs every 100ms for smooth updates)
+            setInterval(() => {
+                const now = Date.now();
+                const delta = (now - gameState.lastTick) / 1000;
+                gameState.lastTick = now;
+
+                // Add passive energy from generators
+                const cps = getCPS();
+                if (cps > 0) {
+                    const gained = cps * delta;
+                    gameState.energy += gained;
+                    gameState.totalEnergyEarned += gained;
+                }
+
+                gameState.timePlayed += delta;
+                updateDisplay();
+            }, 100);
+
+            // Auto Save Loop (Every 30 seconds)
+            setInterval(() => saveGame(), 30000);
+
+            // Random Events Loop (Every 45 seconds check)
+            setInterval(() => spawnRandomEvent(), 45000);
+
+            renderAchievements();
+            updateDisplay();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
